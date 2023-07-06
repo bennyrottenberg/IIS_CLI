@@ -73,6 +73,25 @@ foreach($item in $res)
 }
 
 
+function search_application([string]$application_name) #work with 2012 and 2016
+{
+  write-host "Search for application: $application_name on server $global:serverName"
+  $Output = Invoke-Command -ComputerName $global:serverName { 
+   param($application_name) 
+   Import-Module WebAdministration
+   
+  dir IIS:\Sites | ForEach-Object {
+  Get-WebApplication -Site $_.Name -Name *$application_name*
+  
+  }
+
+
+  } -argumentlist $application_name
+
+  $Output
+}
+
+
 function create_app_pool_list([string]$_state)
 {
 
@@ -718,45 +737,30 @@ function Print-Table([Array[]]$_results) {
           Clear-Host
           write-host "server name is: $global:serverName"
           Write-Host "================ $Title ================"
-          Write-Host "1: Show all Sites."
-          Write-Host "2: Show All WebApplication."
-          Write-Host "3: backup WebApplication."
+          #Write-Host "1: Show all Sites."
+          Write-Host "1: Show All WebApplication."
+          Write-Host "2: backup WebApplication."
+          Write-Host "3: search application."
           Write-Host "m: to main menu."
           write-host "s: change server:"
         $selection = Read-Host "Please make a selection"
         
         switch ($selection)
         {
-        '1' {
-          'Show all Sites. #1'
-        get_iis_sites("dev_val")
-        
-     
-        } '2' {
+       '1' {
         'Show All WebApplication #2'
         get_web_application_with_phisycal_path("def_val")
-        } '3' {
+        } '2' {
           'backup WebApplication. #3'
           $WebApplicationName = Read-Host "Please enter WebApplication name to backup"
           backup_application($WebApplicationName)
         }
-        '4' {
-          'You chose option #3'
+        '3' {
+          'You chose option #4 search application'
           $application_pool_Nane = Read-Host "Please enter application pool name"
-          start_app_pool("$application_pool_Nane")
+          search_application("$application_pool_Nane")
         }
-        '5' {
-          'You chose option #3'
-          get-app-pools("Started")
-        }
-        '6' {
-          'You chose option #3'
-          get-app-pools("Started")
-        }
-        '7' {
-          'You chose option #3'
-          get-app-pools("Started")
-        }
+
         'm' {
           main-Menu
         }
@@ -828,7 +832,6 @@ function Print-Table([Array[]]$_results) {
      Clear-Host
      
   Write-Host "1: Press '1' idev20161."
-  Write-Host "1: Press '1' idev20161."
   Write-Host "2: Press '2' idev2012."
   Write-Host "3: Press '3' itest20121."
   Write-Host "4: Press '4' itest20161."
@@ -836,14 +839,13 @@ function Print-Table([Array[]]$_results) {
   Write-Host "6: Press '6' iprod20122."
   Write-Host "7: Press '7' iprod20165."
   Write-Host "8: Press '8' iprod20166."
-  #Write-Host "9: Press '9' 172.19.217.13."
   Write-Host "`nYou can change server any time`n"
   $serverNameSelection = Read-Host "Please choose server"
 
 	   switch ($serverNameSelection)
   {
   '1' {
-    Write-Host "hello"
+    
        $global:serverName = "idev20161"
        write-host "Server name change to: $global:serverName"
        
