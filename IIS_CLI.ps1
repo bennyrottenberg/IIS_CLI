@@ -220,8 +220,48 @@ function set_server([string]$_server_name)
 
 }
 
+function get_expired_certs([string]$application_name) #work with 2012 and 2016
+{
+  write-host "Search expire certs on the on server $global:serverName"
+  $Output = Invoke-Command -ComputerName $global:serverName { 
+   param($application_name) 
+   Get-ChildItem cert:\ -Recurse | Where-Object {$_ -is [System.Security.Cryptography.X509Certificates.X509Certificate2] -and $_.NotAfter -lt (Get-Date)} | Select-Object -Property FriendlyName,NotAfter
+
+  
+  } -argumentlist $application_name
+
+  $Output
+}
+
+function get_expired_certs_local([string]$application_name) #work with 2012 and 2016
+{
+  write-host "Search expire certs on the local server ... "
 
 
+  Get-ChildItem cert:\ -Recurse | Where-Object {$_ -is [System.Security.Cryptography.X509Certificates.X509Certificate2] -and $_.NotAfter -lt (Get-Date)} | Select-Object -Property FriendlyName,NotAfter
+}
+
+function get_certs_that_about_to_expired_on_all_servers()
+{
+  #Set-ExecutionPolicy -ExecutionPolicy Bypass
+  $servers= (Get-ADComputer -Filter 'Name -like "iprod*"').Name
+  $result=@()
+  foreach ($server in $servers)
+  {
+      write-host "server is: $server"
+  $ErrorActionPreference="SilentlyContinue"
+  $getcert=Invoke-Command -ComputerName $server { Get-ChildItem -Path Cert:\LocalMachine\My -Recurse -ExpiringInDays 90}
+  foreach ($cert in $getcert) {
+  $result+=New-Object -TypeName PSObject -Property ([ordered]@{
+  'Server'=$server;
+  'Certificate'=$cert.Issuer;
+  'Expires'=$cert.NotAfter
+  })
+  }
+  }
+  #chnage path for the CSV
+  $result
+}
 function get_iis_sites([string]$_app_pool_name)
  {
      Invoke-Command -ComputerName $global:serverName { 
@@ -560,7 +600,29 @@ function Print-Table([Array[]]$_results) {
   
  }
 
+  function print_get_certs_res_colored([System.Array]$x)
+ {
+  
+  $x  | Format-Color @{'2023' = 'Red';}
+  
+ }
 
+
+
+function got-to-ski([string]$_state)
+{
+  Write-Host "Sweet Dreams"
+
+  $S = 0x1f600
+$S = $S - 0x10000
+$H = 0xD800 + ($S -shr 10)
+$L = 0xDC00 + ($S -band 0x3FF)
+$emoji = [char]$H + [char]$L
+$emoji 
+$emoji 
+$emoji 
+
+}
  function get-app-pools([string]$_state) {
   Write-Host "get-app-pools start, server name is $global:serverName, state parameter is: $_state"
   if ( $global:serverName -like "*2012*") { 
@@ -625,7 +687,61 @@ function Print-Table([Array[]]$_results) {
 
 }
 
+ function cert-Menu {
+     
+     param (
+         [string]$Title = 'cert-Menu'
+     )
+     Write-Host "Start cert-Menu function" 
 
+     
+     do
+     {
+      Clear-Host
+          write-host "server name is: $global:serverName"
+          Write-Host "================ $Title ================"
+          Write-Host "1:  press '1' for expire certs."
+          Write-Host "2:  press '2' for expire certs on local server."
+          Write-Host "3:  press '3' to go to ski vacation."
+          Write-Host "4:  press '4' ."
+          Write-Host "m:  press 'm' back to main."
+          
+
+        $selection = Read-Host "Please make a selection"
+        
+        switch ($selection)
+        {
+        '1' {
+          'You chose to Show all application pools #1'
+        
+        print_get_certs_res_colored(get_expired_certs(""))
+        
+     
+        } '2' {
+        'You chose option #2'
+         print_get_certs_res_colored(get_expired_certs_local(""))
+        } 
+        '3' {
+        'You chose option #2'
+         got-to-ski("")
+        } #Write-Host "3:  press '3' to go to ski vacation."
+        'm' {
+          main-Menu
+        }
+        
+        's' {
+          server-menu
+        }
+        'q' {
+          write-host "--------------------------Finish--------------------------------"
+          exit 
+        }
+        }
+        pause
+     }
+     until ($selection -eq 'q')
+
+ }
 
  function application-pool-Menu {
      
@@ -786,6 +902,7 @@ function Print-Table([Array[]]$_results) {
      
      Write-Host "1: Press '1' for application pools menu."
      Write-Host "2: Press '2' for web application menu."
+     Write-Host "3: Press '3' cert menu."
      Write-Host "Q: Press 'Q' to quit."
 
      $selection = Read-Host "Please make a selection"
@@ -797,10 +914,16 @@ function Print-Table([Array[]]$_results) {
         'You chose option #1'
         application-pool-Menu
      
-        } '2' {
+        } '2' {    
         'You chose option #2'
         web-site-Menu
-        } 's' {
+        }
+        '3' {    
+        'You chose option #3'
+        cert-Menu
+        
+        }
+         's' {
           
          
           server-menu
@@ -839,6 +962,8 @@ function Print-Table([Array[]]$_results) {
   Write-Host "6: Press '6' iprod20122."
   Write-Host "7: Press '7' iprod20165."
   Write-Host "8: Press '8' iprod20166."
+  Write-Host "8: Press '9' iprodbbg1."
+  Write-Host "8: Press '10' iprodbbg2."
   Write-Host "`nYou can change server any time`n"
   $serverNameSelection = Read-Host "Please choose server"
 
@@ -878,7 +1003,11 @@ function Print-Table([Array[]]$_results) {
   write-host "Server name change to: $global:serverName"
 }
 '9' {
-  $global:serverName = "172.19.217.13"
+  $global:serverName = "iprodbbg1"
+  write-host "Server name change to: $global:serverName"
+}
+'10' {
+  $global:serverName = "iprodbbg2"
   write-host "Server name change to: $global:serverName"
 }
  
@@ -893,164 +1022,30 @@ function Print-Table([Array[]]$_results) {
  }
 
  
- function serverMenuFunction() {
-     
-  param (
-      [string]$Title = 'server-menu'
-  )
-  
-Write-Host "1: Press '1' idev20161 ==========================."
-Write-Host "2: Press '2' idev2012."
-Write-Host "3: Press '3' itest20121."
-Write-Host "4: Press '4' itest20161."
-Write-Host "5: Press '5' iprod20121."
-Write-Host "6: Press '6' iprod20122."
-Write-Host "7: Press '7' iprod20165."
-Write-Host "8: Press '8' iprod20166."
-#Write-Host "9: Press '9' 172.19.217.13."
-Write-Host "`nYou can change server any time`n"
-$serverNameSelection = Read-Host "Please choose server"
-  do
-  {
-  switch ($serverNameSelection)
-{
-'1' {
-    $global:serverName = "idev20161"
-    write-host "Server name change to: $global:serverName"
-} '2' {
-  $global:serverName = "idev2012"
-  write-host "Server name change to: $global:serverName"
-}
-'3' {
-$global:serverName = "itest20121"
-write-host "Server name change to: $global:serverName"
-}
-'4' {
-$global:serverName = "itest20161"
-write-host "Server name change to: $global:serverName"
-}
-'5' {
-$global:serverName = "iprod20121"
-write-host "Server name change to: $global:serverName"
-}
-'6' {
-$global:serverName = "iprod20122"
-write-host "Server name change to: $global:serverName"
-}
-'7' {
-$global:serverName = "iprod20165"
-write-host "Server name change to: $global:serverName"
-}
-'8' {
-$global:serverName = "iprod20166"
-write-host "Server name change to: $global:serverName"
-}
-'9' {
-$global:serverName = "172.19.217.13"
-write-host "Server name change to: $global:serverName"
-}
-'m' {
-main-menu
-}
-'q' {
-write-host "--------------------------Finish--------------------------------"
- exit 
-}
-}
-
-     
-  }
-  until ($selection -eq 'q')
-
-}
 
 
 
- function selectServer()
- {
-  Write-Host "selectServer started"
 
-  
-  Write-Host ""
-  Write-Host "1: Press '1' idev20161."
-  Write-Host "2: Press '2' idev2012."
-  Write-Host "3: Press '3' itest20121."
-  Write-Host "4: Press '4' itest20161."
-  Write-Host "5: Press '5' iprod20121."
-  Write-Host "6: Press '6' iprod20122."
-  Write-Host "7: Press '7' iprod20165."
-  Write-Host "8: Press '8' iprod20166."
-  #Write-Host "9: Press '9' 172.19.217.13."
-  Write-Host "`nYou can change server any time`n"
-  $serverNameSelection = Read-Host "Please choose server"
-  
-  switch ($serverNameSelection)
-  {
-  '1' {
-       $global:serverName = "idev20161"
-       write-host "Server name change to: $global:serverName"
-       exit
-  } '2' {
-     $global:serverName = "idev2012"
-     write-host "Server name change to: $global:serverName"
-  }
-  '3' {
-   $global:serverName = "itest20121"
-   write-host "Server name change to: $global:serverName"
- }
- '4' {
-   $global:serverName = "itest20161"
-   write-host "Server name change to: $global:serverName"
- }
- '5' {
-   $global:serverName = "iprod20121"
-   write-host "Server name change to: $global:serverName"
- }
- '6' {
-   $global:serverName = "iprod20122"
-   write-host "Server name change to: $global:serverName"
- }
- '7' {
-   $global:serverName = "iprod20165"
-   write-host "Server name change to: $global:serverName"
- }
- '8' {
-  $global:serverName = "iprod20166"
-  write-host "Server name change to: $global:serverName"
-}
-'9' {
-  $global:serverName = "172.19.217.13"
-  write-host "Server name change to: $global:serverName"
-}
- 'm' {
-  main-menu
-}
-'q' {
-  write-host "--------------------------Finish--------------------------------"
-    exit 
-}
- }
-
-
- Write-Host "selectServer finished"
-
-
-}
-
+ 
 
 
 function select-server-on-start()
 {
   Write-Host "Please choose server to continue.`n"
+  Write-Host "Dev"
   Write-Host "1: Press '1' idev20161."
-  Write-Host "1: Press '1' idev20161 ."
-  Write-Host "2: Press '2' idev2012."
+  Write-Host "2: Press '2' idev2012.`n"
+  Write-Host "Test"
   Write-Host "3: Press '3' itest20121."
-  Write-Host "4: Press '4' itest20161."
+  Write-Host "4: Press '4' itest20161.`n"
+  Write-Host "Prod"
   Write-Host "5: Press '5' iprod20121."
   Write-Host "6: Press '6' iprod20122."
   Write-Host "7: Press '7' iprod20165."
-  Write-Host "8: Press '8' iprod20166."
+  Write-Host "8: Press '8' iprod20166.`n"
+  Write-Host "BBG"
+  Write-Host "9: Press '9' iprodbbg1."
+  Write-Host "10: Press '10' iprodbbg2."
   #Write-Host "9: Press '9' 172.19.217.13."
   Write-Host "`nYou can change server any time`n"
   $serverNameSelection = Read-Host "Please choose server"
@@ -1091,7 +1086,11 @@ function select-server-on-start()
   write-host "Server name change to: $global:serverName"
 }
 '9' {
-  $global:serverName = "172.19.217.13"
+  $global:serverName = "iprodbbg1"
+  write-host "Server name change to: $global:serverName"
+}
+'10' {
+  $global:serverName = "iprodbbg2"
   write-host "Server name change to: $global:serverName"
 }
  
@@ -1102,8 +1101,6 @@ function select-server-on-start()
  }
 
 
-
-
 }
 
 $S = 0x1f600
@@ -1111,18 +1108,7 @@ $S = $S - 0x10000
 $H = 0xD800 + ($S -shr 10)
 $L = 0xDC00 + ($S -band 0x3FF)
 $emoji = [char]$H + [char]$L
-
-
 Write-Host "`nWellcome to Web System IIS CLI tool $emoji"
-
-
 select-server-on-start
-
-
 main-Menu 
-
-
-
-
-
 write-host "--------------------------Finish--------------------------------"
