@@ -22,7 +22,7 @@ function Format-Color([hashtable] $Colors = @{}, [switch] $SimpleMatch) {
 
 function backup_application([string]$application_name) #work with 2012 and 2016
 {
-  write-host "Search for application: $application_name on server $global:serverName"
+  write-host "The system Searching for: $application_name on server $global:serverName Please wait ..."
   $Output = Invoke-Command -ComputerName $global:serverName { 
    param($application_name) 
    Import-Module WebAdministration
@@ -687,6 +687,247 @@ $emoji
 
 }
 
+
+function clear_files_older_then_x_days($_logs_path)
+{
+Write-Host "clear_files_older_then_x_days start param in func: $_logs_path"
+
+Invoke-Command -ComputerName $global:serverName { 
+    param($_logs_path) 
+   
+   Import-Module WebAdministration
+
+ # Prompt user for the location to scan
+#$location = Read-Host "Enter the location to scan for files and folders"
+$location = $_logs_path
+Write-Host "location is $location"
+# Prompt user for the duration (older than how many days)
+#$days = Read-Host "Enter the duration (older than how many days)"
+$days = 10
+
+# Prompt user for the action (1 for delete, 2 for do nothing)
+$action = Read-Host "Enter the action (1 for delete, 2 for do nothing)"
+
+# Calculate the cutoff date
+$cutoffDate = (Get-Date).AddDays(-$days)
+
+# Find files and folders older than the specified duration
+$oldItems = Get-ChildItem -Path $location -Recurse | Where-Object { $_.LastWriteTime -lt $cutoffDate }
+$oldItems
+# Take action based on user's choice
+if ($action -eq "1") {
+    $oldItems | ForEach-Object {
+        if ($_.PSIsContainer) {
+            Write-Host "Deleting folder: $($_.FullName)"
+            #Remove-Item $_.FullName -Recurse -Force
+        } else {
+            Write-Host "Deleting file: $($_.FullName)"
+            #Remove-Item $_.FullName -Force
+        }
+    }
+} elseif ($action -eq "2") {
+    Write-Host "No action taken. Here are the items older than $days days:"
+    $oldItems | ForEach-Object { Write-Host $_.FullName }
+} else {
+    Write-Host "Invalid action selected."
+} 
+
+
+
+   
+
+
+
+
+  } -argumentlist $_logs_path  
+
+
+
+
+
+
+}
+
+
+function show_logs_folderd([string]$_defval)
+{
+
+Invoke-Command -ComputerName $global:serverName { 
+    param($_defval) 
+   
+   Import-Module WebAdministration
+
+ foreach($WebSite in $(get-website))
+    {
+    $logFolder="$($Website.logFile.directory)\w3svc$($website.id)".replace("%SystemDrive%",$env:SystemDrive)
+    Write-host "========================"
+    Write-host "$($WebSite.name) `n$logFolder"
+    Write-host "========================`n"
+    } 
+
+   
+
+
+
+
+  } -argumentlist $_defval  
+
+
+
+
+
+
+}
+
+function clear_iis_logs()
+{
+
+
+
+
+Invoke-Command -ComputerName $global:serverName { 
+    param($_defval) 
+
+
+    foreach($WebSite in $(get-website))
+    {
+    $logFolder="$($Website.logFile.directory)\w3svc$($website.id)".replace("%SystemDrive%",$env:SystemDrive)
+
+    Write-Host "clear_iis_logs start:  logFolder is: $logFolder"
+    #clear_files_older_then_x_days($logFolder)
+
+
+       Import-Module WebAdministration
+
+ # Prompt user for the location to scan
+#$location = Read-Host "Enter the location to scan for files and folders"
+$location = $logFolder
+Write-Host "location is $location"
+# Prompt user for the duration (older than how many days)
+#$days = Read-Host "Enter the duration (older than how many days)"
+$days = 90
+
+# Prompt user for the action (1 for delete, 2 for do nothing)
+$action = 1#Read-Host "Enter the action (1 for delete, 2 for do nothing)"
+
+# Calculate the cutoff date
+$cutoffDate = (Get-Date).AddDays(-$days)
+
+# Find files and folders older than the specified duration
+$oldItems = Get-ChildItem -Path $location -Recurse | Where-Object { $_.LastWriteTime -lt $cutoffDate }
+$oldItems
+# Take action based on user's choice
+if ($action -eq "1") {
+    $oldItems | ForEach-Object {
+        if ($_.PSIsContainer) {
+            Write-Host "Deleting folder: $($_.FullName)"
+            Remove-Item $_.FullName -Recurse -Force
+        } else {
+            Write-Host "Deleting file: $($_.FullName)"
+            Remove-Item $_.FullName -Force
+        }
+    }
+} elseif ($action -eq "2") {
+    Write-Host "No action taken. Here are the items older than $days days:"
+    $oldItems | ForEach-Object { Write-Host $_.FullName }
+} else {
+    Write-Host "Invalid action selected."
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    } 
+    
+
+   
+   
+
+
+
+
+  } -argumentlist $_defval  
+
+
+}
+
+function clearLog-Menu
+{
+
+     param (
+         [string]$Title = 'clearLog-Menu'
+     )
+     Write-Host "Start clearLog-Menu function" 
+
+     
+     do
+     {
+      Clear-Host
+          write-host "server name is: $global:serverName"
+          Write-Host "================ $Title ================"
+          Write-Host "1:  press '1' Show logs folderd."
+          Write-Host "2:  press '2' Clear all logs."
+          Write-Host "3:  press '3' To go to ski vacation."
+          Write-Host "m:  press 'm' Go back to main-menu."
+          write-host "s:  press 's' Change server."
+          
+
+        $selection = Read-Host "Please make a selection"
+        
+        switch ($selection)
+        {
+        '1' {
+          'You chose to Show all application pools #1'
+        
+         show_logs_folderd("def_val")
+        
+     
+        } '2' {
+        'You chose option #2'
+         clear_iis_logs
+        } 
+        '3' {
+        'You chose option #2'
+         got-to-ski("")
+        } #Write-Host "3:  press '3' to go to ski vacation."
+        'm' {
+          main-Menu
+        }
+        
+        's' {
+          server-menu
+        }
+        'q' {
+          write-host "--------------------------Finish--------------------------------"
+          exit 
+        }
+        }
+        pause
+     }
+     until ($selection -eq 'q')
+
+
+}
+
  function cert-Menu {
      
      param (
@@ -731,6 +972,9 @@ $emoji
         
         's' {
           server-menu
+        }
+        'm' {
+          main-Menu
         }
         'q' {
           write-host "--------------------------Finish--------------------------------"
@@ -903,6 +1147,7 @@ $emoji
      Write-Host "1: Press '1' for application pools menu."
      Write-Host "2: Press '2' for web application menu."
      Write-Host "3: Press '3' cert menu."
+     Write-Host "4: Press '4' clear logs."
      Write-Host "Q: Press 'Q' to quit."
 
      $selection = Read-Host "Please make a selection"
@@ -921,6 +1166,11 @@ $emoji
         '3' {    
         'You chose option #3'
         cert-Menu
+        
+        }
+         '4' {    
+        'You chose option #3'
+        clearLog-Menu
         
         }
          's' {
@@ -954,16 +1204,23 @@ $emoji
      
      Clear-Host
      
+  Write-Host "Please choose server to continue.`n"
+  Write-Host "Dev"
   Write-Host "1: Press '1' idev20161."
-  Write-Host "2: Press '2' idev2012."
+  Write-Host "2: Press '2' idev2012.`n"
+  Write-Host "Test"
   Write-Host "3: Press '3' itest20121."
-  Write-Host "4: Press '4' itest20161."
+  Write-Host "4: Press '4' itest20161.`n"
+  Write-Host "Prod"
   Write-Host "5: Press '5' iprod20121."
   Write-Host "6: Press '6' iprod20122."
   Write-Host "7: Press '7' iprod20165."
-  Write-Host "8: Press '8' iprod20166."
-  Write-Host "8: Press '9' iprodbbg1."
-  Write-Host "8: Press '10' iprodbbg2."
+  Write-Host "8: Press '8' iprod20166.`n"
+  Write-Host "BBG"
+  Write-Host "9: Press '9' iprodbbg1."
+  Write-Host "10: Press '10' iprodbbg2."
+  Write-Host "11: Press '11' iprodshr1."
+  Write-Host "12: Press '12' iprodshr2."
   Write-Host "`nYou can change server any time`n"
   $serverNameSelection = Read-Host "Please choose server"
 
@@ -1010,6 +1267,14 @@ $emoji
   $global:serverName = "iprodbbg2"
   write-host "Server name change to: $global:serverName"
 }
+'11' {
+  $global:serverName = "iprodshr1"
+  write-host "Server name change to: $global:serverName"
+}
+'12' {
+  $global:serverName = "iprodshr2"
+  write-host "Server name change to: $global:serverName"
+}
  
 'q' {
   write-host "--------------------------Finish--------------------------------"
@@ -1046,6 +1311,8 @@ function select-server-on-start()
   Write-Host "BBG"
   Write-Host "9: Press '9' iprodbbg1."
   Write-Host "10: Press '10' iprodbbg2."
+  Write-Host "11: Press '11' iprodshr1."
+  Write-Host "12: Press '12' iprodshr2."
   #Write-Host "9: Press '9' 172.19.217.13."
   Write-Host "`nYou can change server any time`n"
   $serverNameSelection = Read-Host "Please choose server"
@@ -1091,6 +1358,14 @@ function select-server-on-start()
 }
 '10' {
   $global:serverName = "iprodbbg2"
+  write-host "Server name change to: $global:serverName"
+}
+'11' {
+  $global:serverName = "iprodshr1"
+  write-host "Server name change to: $global:serverName"
+}
+'12' {
+  $global:serverName = "iprodshr2"
   write-host "Server name change to: $global:serverName"
 }
  
